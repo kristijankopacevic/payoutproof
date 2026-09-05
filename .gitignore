@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.DS_Store
+.optiflow/
+# Never commit a real merchant export
+docs/customer/
+*-real.csv

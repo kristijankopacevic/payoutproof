@@ -1,0 +1,4 @@
+Payout Date,Status,Charges,Refunds,Adjustments,Reserved Funds,Fees,Retried Amount,Total,Currency,Bank Reference
+2026-08-03,paid,465.49,0.00,0.00,0.00,14.70,0.00,450.79,USD,DEMO-BANK-REF-0803
+2026-08-10,paid,246.00,-45.50,-15.00,0.00,8.04,0.00,177.47,USD,DEMO-BANK-REF-0810
+2026-08-17,paid,264.90,0.00,0.00,0.00,6.66,0.00,258.24,EUR,DEMO-BANK-REF-0817

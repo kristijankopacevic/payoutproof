@@ -1,0 +1,10 @@
+{
+  "name": "payoutproof",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shopify payout reconciliation in the browser: turns the Shopify Payments transactions export into a per-payout breakdown of charges, refunds, adjustments and fees, checked against the payout total. Uploaded CSV contents are processed locally and never sent to a server.",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  }
+}

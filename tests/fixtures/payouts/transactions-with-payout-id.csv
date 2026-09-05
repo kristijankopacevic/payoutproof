@@ -1,0 +1,5 @@
+Transaction Date,Type,Order,Payout Status,Payout Date,Payout ID,Amount,Fee,Net,Currency
+2026-08-01 10:00:00 -0400,charge,#1001,paid,2026-08-03,P-1,100.00,3.20,96.80,USD
+2026-08-01 11:00:00 -0400,charge,#1002,paid,2026-08-03,P-2,50.00,1.75,48.25,USD
+2026-08-02 09:00:00 -0400,refund,#1001,paid,2026-08-03,P-2,-20.00,0.00,-20.00,USD
+2026-08-02 12:00:00 -0400,adjustment,,paid,2026-08-03,P-2,-5.00,0.00,-5.00,USD

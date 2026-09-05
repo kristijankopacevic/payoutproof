@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PayoutProof — turn a Shopify payout CSV into a clean reconciliation breakdown</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="PayoutProof — turn a Shopify payout CSV into a clean reconciliation breakdown">
+<meta property="og:description" content="Drop the transactions export from Finance › Payouts. See every payout broken into gross charges, refunds, adjustments and fees, checked against the payout total Shopify reported. Files are processed locally in your browser.">
+<meta property="og:url" content="https://kristijankopacevic.github.io/payoutproof/">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:,">
+<link rel="canonical" href="https://kristijankopacevic.github.io/payoutproof/">
+<meta name="description" content="Turn a Shopify Payments payout CSV into an accountant-friendly reconciliation breakdown: gross charges, refunds, adjustments, fees and net per payout, checked against the reported total. No account, no app install; files are processed locally in your browser.">
+<style>
+  :root{--ink:#16211c;--muted:#5d6b64;--line:#e0e6e2;--bg:#fbfaf8;--card:#fff;
+        --accent:#1f6f4f;--soft:#eaf3ee;--loss:#a2342b;--losssoft:#fbecea;
+        --wrong:#8a6320;--wrongsoft:#fdf6e7;--risk:#3c5a86;--risksoft:#eef2f9}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:var(--ink);background:var(--bg)}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+  header{padding:52px 0 22px}
+  .badge{display:inline-block;background:var(--soft);color:var(--accent);font-size:12.5px;
+         font-weight:650;padding:5px 11px;border-radius:999px}
+  h1{font-size:clamp(27px,4.4vw,38px);line-height:1.14;margin:16px 0 12px;letter-spacing:-.02em}
+  .lede{font-size:18px;color:var(--muted);max-width:62ch;margin:0}
+  h2{font-size:19px;margin:34px 0 10px}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:26px 0 8px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin:16px 0}
+  #drop{border:2px dashed var(--line);border-radius:12px;padding:32px 20px;text-align:center;
+        background:var(--card);cursor:pointer;transition:.15s}
+  #drop:hover,#drop.over{border-color:var(--accent);background:var(--soft)}
+  #drop b{display:block;font-size:17px;margin-bottom:4px}
+  #drop span{color:var(--muted);font-size:14px}
+  .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:16px 0}
+  label{font-size:14px;color:var(--muted);display:block}
+  button{font:inherit;padding:8px 15px;border-radius:7px;border:1px solid var(--accent);
+         background:var(--accent);color:#fff;cursor:pointer}
+  button.ghost{background:var(--card);color:var(--accent)}
+  button.plain{background:var(--card);color:var(--muted);border-color:var(--line)}
+  .stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:14px}
+  .stat b{display:block;font-size:22px;font-variant-numeric:tabular-nums;letter-spacing:-.02em;overflow-wrap:anywhere}
+  .stat span{font-size:12.5px;color:var(--muted)}
+  .stat.bad b{color:var(--loss)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);white-space:nowrap}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .tag{display:inline-block;font-size:11px;font-weight:650;padding:2px 7px;border-radius:5px;white-space:nowrap}
+  .t-MATCHED{background:var(--soft);color:var(--accent)}
+  .t-DIFFERENCE,.t-UNMATCHED_PAYOUT_ROW{background:var(--losssoft);color:var(--loss)}
+  .t-AMBIGUOUS_MATCH,.t-INCOMPLETE_SOURCE{background:var(--wrongsoft);color:var(--wrong)}
+  .t-NO_PAYOUT_ROW,.t-PENDING_NOT_PAID{background:var(--risksoft);color:var(--risk)}
+  .na{color:var(--wrong);font-style:italic;font-size:12.5px;white-space:nowrap}
+  .note{background:var(--soft);border-radius:9px;padding:15px 17px;font-size:14.5px;margin:14px 0}
+  .warn{background:var(--losssoft);border:1px solid #f0c9c4;border-radius:9px;padding:15px 17px;font-size:15px;margin:14px 0}
+  .demo{background:var(--wrongsoft);border:1px solid #ead9b0;color:var(--wrong);border-radius:9px;padding:10px 14px;font-size:14px;font-weight:650;margin:14px 0}
+  .scroll{overflow-x:auto}
+  .find{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14.5px}
+  .find .sev{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding-top:3px}
+  .find .sev.check{color:var(--loss)} .find .sev.info{color:var(--muted)}
+  .find .where{color:var(--muted);font-size:13px}
+  ul{padding-left:20px;margin:0 0 12px} li{margin:5px 0}
+  footer{border-top:1px solid var(--line);margin-top:48px;padding:24px 0 56px;color:var(--muted);font-size:13.5px}
+  a{color:var(--accent)}
+  @media (prefers-color-scheme:dark){
+    :root{--ink:#e9eeea;--muted:#98a69f;--line:#2a3531;--bg:#0f1513;--card:#161e1b;
+          --accent:#6ec69b;--soft:#163023;--loss:#e69187;--losssoft:#2c1a18;
+          --wrong:#d8b46a;--wrongsoft:#2a2317;--risk:#9db8dd;--risksoft:#1a222e}
+    button{color:#0f1613} button.ghost,button.plain{color:var(--accent)}
+    .demo{border-color:#4a3e1e}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="badge">Free · no account · no Shopify app to install</span>
+  <h1>Turn a Shopify payout CSV into a clean reconciliation breakdown.</h1>
+  <p class="lede">Drop the transactions export from <b>Finance › Payouts</b>. Every payout is
+  broken into gross charges, refunds, adjustments and fees, and the result is checked against
+  the payout total Shopify reported — an accountant-friendly breakdown you can download.</p>
+</header>
+
+<div class="note">
+  <strong>Your uploaded Shopify CSV files are processed locally in your browser.</strong>
+  PayoutProof does not upload the contents of those files to a server. Nothing is stored.
+  Reloading this page erases everything.
+</div>
+
+<div id="drop">
+  <b>Drop your Shopify Payments transactions export here</b>
+  <span>or click to choose · Finance › Payouts › View transactions › Export · CSV, UTF-8</span>
+  <input type="file" id="file" accept=".csv,text/csv" hidden>
+</div>
+
+<div class="card">
+  <div class="row">
+    <div style="flex:1;min-width:240px">
+      <label for="payouts">Optional: the payouts export (one row per payout). With it, each payout is
+      checked against the total Shopify reported.</label>
+      <input type="file" id="payouts" accept=".csv,text/csv">
+    </div>
+    <button class="ghost" id="sample" type="button">Try sample</button>
+    <button class="plain" id="clear" type="button">Clear data</button>
+  </div>
+  <div id="files" style="color:var(--muted);font-size:14px"></div>
+</div>
+
+<div id="out"></div>
+
+<div class="card">
+  <h2 style="margin-top:0">What it does</h2>
+  <ul>
+    <li><b>Groups every transaction under its payout</b> using the Payout Date (and Payout ID
+        when your export has one) and the currency.</li>
+    <li><b>Adds up what the export says</b> — charges, refunds, adjustments, disputes, fees — in
+        exact integer cents, and shows the sum of Amount − Fee <em>and</em> the sum of the Net
+        column, so you can see when Shopify's own columns disagree.</li>
+    <li><b>Checks the payout total</b> when you add the payouts export: MATCHED, or the exact
+        signed DIFFERENCE. Two payouts on the same day in the same currency are reported as
+        AMBIGUOUS rather than guessed.</li>
+    <li><b>Keeps provenance.</b> The detail export carries the source file, row, raw value and
+        the transformation for every amount.</li>
+  </ul>
+  <h2>What it will not do</h2>
+  <ul>
+    <li>It never treats a missing value as zero. Anything the export does not carry is shown as
+        <em>not available from source</em>.</li>
+    <li>It does not calculate VAT or tax. A VAT column, if present, is passed through exactly as
+        Shopify exported it.</li>
+    <li>It does not decide accounting treatment, post to QuickBooks or Xero, or match your bank
+        statement. It organises and reconciles the source data so that step is quick.</li>
+    <li>It does not read or change your store. It only reads files you chose.</li>
+  </ul>
+  <p style="color:var(--muted);font-size:14px;margin:0">
+    From the same independent maker: <a href="https://kristijankopacevic.github.io/marginproof/">MarginProof</a>,
+    a catalogue margin audit for product exports.</p>
+</div>
+
+<footer>
+  <p>Independent, and not affiliated with Shopify or any accounting platform. Reads files you
+  select in your browser and does not upload their contents. PayoutProof is not accounting or
+  tax advice.</p>
+</footer>
+
+</div>
+
+<script type="module">
+import { analyse, fmt, payoutSummaryCsv, transactionDetailCsv, safeFilename, looksUtf16, LIMITS, NOT_AVAILABLE, STATUS }
+  from './src/payouts.js';
+import { DEMO_TRANSACTIONS, DEMO_PAYOUTS, DEMO_TRANSACTIONS_NAME, DEMO_PAYOUTS_NAME } from './src/payouts-sample.js';
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money = v => (v === NOT_AVAILABLE || v === null) ? '<span class="na">not available from source</span>' : esc(fmt(v));
+const state = { tx: null, txName: '', po: null, poName: '', demo: false, urls: [] };
+
+function setFiles() {
+  $('files').textContent = state.tx
+    ? `Transactions: ${state.txName} (${state.tx.length.toLocaleString()} characters)` + (state.po ? ` · Payouts: ${state.poName}` : ' · no payouts export yet')
+    : '';
+}
+
+function readFile(file, cb) {
+  if (file.size > LIMITS.MAX_BYTES) {
+    $('out').innerHTML = `<div class="warn"><strong>File too large.</strong> ${esc(file.name)} is
+      ${(file.size / 1048576).toFixed(1)} MB; the limit is ${LIMITS.MAX_BYTES / 1048576} MB. Export a shorter date range.</div>`;
+    return;
+  }
+  const head = new FileReader();
+  head.onload = () => {
+    if (looksUtf16(new Uint8Array(head.result))) {
+      $('out').innerHTML = `<div class="warn"><strong>${esc(file.name)} is UTF-16.</strong> Please re-save
+        or re-export it as UTF-8 CSV — that is what Shopify's own export produces.</div>`;
+      return;
+    }
+    const r = new FileReader();
+    r.onload = () => cb(r.result);
+    r.readAsText(file);
+  };
+  head.readAsArrayBuffer(file.slice(0, 4));
+}
+
+function clearData() {
+  state.tx = null; state.txName = ''; state.po = null; state.poName = ''; state.demo = false;
+  for (const u of state.urls) URL.revokeObjectURL(u);
+  state.urls = [];
+  $('file').value = ''; $('payouts').value = '';
+  $('out').innerHTML = ''; setFiles();
+}
+
+function tag(status) { return `<span class="tag t-${esc(status)}">${esc(status.replace(/_/g, ' '))}</span>`; }
+
+function render() {
+  setFiles();
+  if (!state.tx) return;
+  const m = analyse(state.tx, state.txName, state.po, state.poName);
+  if (m.results.length === 0 && m.errors.length) {
+    $('out').innerHTML = `<div class="warn"><strong>Could not read this as a transactions export.</strong>
+      ${m.errors.map(e => `<div>${esc(e)}</div>`).join('')}</div>`;
+    return;
+  }
+  const checks = m.findings.filter(f => f.severity === 'check');
+  const diffs = m.results.filter(r => r.status === STATUS.DIFFERENCE).length;
+  const matched = m.results.filter(r => r.status === STATUS.MATCHED).length;
+  const pendingCount = [...m.pending.values()].reduce((a, p) => a + p.txns.length, 0);
+
+  const summaryRows = m.results.map(r => `<tr>
+    <td>${esc(r.payoutDate)}${r.payoutId ? `<br><span style="color:var(--muted);font-size:12px">${esc(r.payoutId)}</span>` : ''}</td>
+    <td>${esc(r.currency)}</td>
+    <td>${tag(r.status)}</td>
+    <td class="n">${r.transactionCount}</td>
+    <td class="n">${money(r.agg.grossCharges)}</td>
+    <td class="n">${money(r.agg.refunds)}</td>
+    <td class="n">${money(r.agg.adjustments)}</td>
+    <td class="n">${money(r.agg.other)}</td>
+    <td class="n">${money(r.agg.totalFees)}</td>
+    <td class="n"><b>${money(r.agg.computedNet)}</b></td>
+    <td class="n">${money(r.reportedTotal)}</td>
+    <td class="n" style="${r.difference !== NOT_AVAILABLE && r.difference !== 0 ? 'color:var(--loss);font-weight:650' : ''}">${money(r.difference)}</td>
+    <td style="font-size:12.5px;color:var(--muted)">${esc(r.bankReference === NOT_AVAILABLE ? '' : r.bankReference)}</td>
+  </tr>`).join('') + m.unmatchedPayouts.map(u => `<tr>
+    <td>${esc(u.payoutDate || u.payoutDateRaw)}</td><td>${esc(u.currency)}</td><td>${tag(u.status)}</td>
+    <td class="n">0</td><td class="n" colspan="6"><span class="na">no transactions in the transactions export</span></td>
+    <td class="n">${money(u.total)}</td><td class="n"><span class="na">not available from source</span></td>
+    <td style="font-size:12.5px;color:var(--muted)">${esc(u.bankReference === NOT_AVAILABLE ? '' : u.bankReference)}</td>
+  </tr>`).join('');
+
+  const totals = m.totals.byCurrency.map(t => `
+    <div class="stat"><b>${money(t.computedNet)}</b><span>${esc(t.currency)} · computed net of ${t.payouts} payout(s), ${t.transactions} transactions</span></div>
+    <div class="stat"><b>${money(t.grossCharges)}</b><span>${esc(t.currency)} · gross charges</span></div>
+    <div class="stat"><b>${money(t.refunds)}</b><span>${esc(t.currency)} · refunds</span></div>
+    <div class="stat"><b>${money(t.totalFees)}</b><span>${esc(t.currency)} · fees</span></div>`).join('');
+
+  const findingsHtml = m.findings.length ? `<div class="find">${m.findings.map(f => `
+    <div class="sev ${f.severity}">${f.severity === 'check' ? 'check' : 'info'}</div>
+    <div>${esc(f.message)}<div class="where">${esc(f.where || '')}</div></div>`).join('')}</div>`
+    : '<p style="color:var(--muted)">Nothing to flag.</p>';
+
+  const absent = m.unknown.absentColumns;
+  const unknownHtml = `<ul>
+    <li>Payouts export ${m.payoutsSupplied ? 'supplied — payout totals were checked.' : '<b>not supplied</b> — reported totals and differences are not available. Add it above to check each payout.'}</li>
+    <li>Columns not in your transactions export: ${absent.length ? absent.map(a => `<code>${esc(a)}</code>`).join(', ') : 'none of the known optional columns are missing'}.</li>
+    <li>Cells that could not be read as money — Amount: ${m.unknown.unknownValues.amount}, Fee: ${m.unknown.unknownValues.fee}, Net: ${m.unknown.unknownValues.net}. These stay <em>not available</em>; they are never counted as 0.</li>
+    <li>Not in any Shopify payout export, so never shown here: ${m.unknown.notInAnyExport.map(esc).join('; ')}.</li>
+    <li>Cross-currency grand total: ${m.totals.crossCurrencyTotal === NOT_AVAILABLE ? '<span class="na">not available from source</span> — currencies are never added together' : money(m.totals.crossCurrencyTotal)}.</li>
+  </ul>`;
+
+  const detailRows = m.txns.slice(0, LIMITS.RENDER_ROWS).map(t => `<tr>
+    <td>${esc(t.payoutDate || '—')}</td><td>${esc(t.transactionDate || '')}</td><td>${esc(t.typeRaw)}</td>
+    <td>${esc(t.order === NOT_AVAILABLE ? '' : t.order)}</td><td>${esc(t.currency)}</td>
+    <td class="n">${money(t.amount)}</td><td class="n">${money(t.fee)}</td><td class="n">${money(t.net)}</td>
+    <td>${esc(t.netCheck === 'OK' ? '✓' : t.netCheck)}${t.flags.length ? ` <span style="color:var(--wrong);font-size:12px">${esc(t.flags.join(' '))}</span>` : ''}</td>
+  </tr>`).join('');
+
+  $('out').innerHTML = `
+    ${state.demo ? '<div class="demo">DEMO DATA — a synthetic sample, not a real store. Drop your own export to replace it.</div>' : ''}
+    ${m.errors.length ? `<div class="warn">${m.errors.map(e => `<div>${esc(e)}</div>`).join('')}</div>` : ''}
+    <h3>Payout summary</h3>
+    <div class="stats">
+      <div class="stat"><b>${m.results.length}</b><span>payouts found</span></div>
+      <div class="stat ${diffs ? 'bad' : ''}"><b>${m.payoutsSupplied ? diffs : '—'}</b><span>with a difference</span></div>
+      <div class="stat"><b>${m.payoutsSupplied ? matched : '—'}</b><span>matched to reported total</span></div>
+      <div class="stat"><b>${pendingCount}</b><span>transactions not yet paid out</span></div>
+      <div class="stat ${checks.length ? 'bad' : ''}"><b>${checks.length}</b><span>findings to check</span></div>
+    </div>
+    <div class="card" style="padding:0;margin-top:14px"><div class="scroll"><table>
+      <thead><tr><th>Payout</th><th>Cur.</th><th>Status</th><th class="n">Rows</th><th class="n">Gross charges</th>
+        <th class="n">Refunds</th><th class="n">Adjustments</th><th class="n">Other</th><th class="n">Fees</th>
+        <th class="n">Computed net</th><th class="n">Reported total</th><th class="n">Difference</th><th>Bank ref.</th></tr></thead>
+      <tbody>${summaryRows}</tbody></table></div></div>
+    <p style="color:var(--muted);font-size:13.5px">Computed net is the sum of Amount − Fee over the rows in the payout
+      (or the sum of the Net column when Amount or Fee is missing — the summary export says which). Difference = reported total − computed net.</p>
+    <h3>Totals</h3>
+    <div class="stats">${totals}</div>
+    <h3>Findings</h3>
+    <div class="card">${findingsHtml}</div>
+    <h3>Unknown / missing information</h3>
+    <div class="card">${unknownHtml}</div>
+    <h3>Export</h3>
+    <div class="row">
+      <button id="dl-summary" type="button">Download payout summary CSV</button>
+      <button class="ghost" id="dl-detail" type="button">Download transaction detail CSV</button>
+      <button class="plain" id="print" type="button">Print / save as PDF</button>
+    </div>
+    <h3>Transactions by payout${m.txns.length > LIMITS.RENDER_ROWS ? ` (first ${LIMITS.RENDER_ROWS} of ${m.txns.length}; the detail export has all)` : ''}</h3>
+    <div class="card" style="padding:0"><div class="scroll"><table>
+      <thead><tr><th>Payout date</th><th>Transaction</th><th>Type</th><th>Order</th><th>Cur.</th>
+        <th class="n">Amount</th><th class="n">Fee</th><th class="n">Net</th><th>Amount − Fee = Net</th></tr></thead>
+      <tbody>${detailRows}</tbody></table></div></div>`;
+
+  const download = (text, name) => {
+    const a = document.createElement('a');
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+    state.urls.push(url);
+    a.href = url; a.download = safeFilename(name, 'csv'); a.click();
+  };
+  $('dl-summary').addEventListener('click', () => download(payoutSummaryCsv(m), 'payoutproof-payout-summary'));
+  $('dl-detail').addEventListener('click', () => download(transactionDetailCsv(m), 'payoutproof-transaction-detail'));
+  $('print').addEventListener('click', () => window.print());
+}
+
+const drop = $('drop');
+drop.addEventListener('click', () => $('file').click());
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) readFile(f, text => { state.tx = text; state.txName = f.name; state.demo = false; render(); });
+});
+$('file').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) readFile(f, text => { state.tx = text; state.txName = f.name; state.demo = false; render(); });
+});
+$('payouts').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) readFile(f, text => { state.po = text; state.poName = f.name; render(); });
+});
+$('sample').addEventListener('click', () => {
+  state.tx = DEMO_TRANSACTIONS; state.txName = DEMO_TRANSACTIONS_NAME;
+  state.po = DEMO_PAYOUTS; state.poName = DEMO_PAYOUTS_NAME; state.demo = true;
+  render();
+});
+$('clear').addEventListener('click', clearData);
+</script>
+</body>
+</html>

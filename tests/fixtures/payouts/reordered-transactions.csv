@@ -1,0 +1,5 @@
+Net,Currency,Type,Amount,Payout Date,Fee,Order,Payout Status
+96.80,USD,charge,100.00,2026-08-03,3.20,#1001,paid
+48.25,USD,charge,50.00,2026-08-03,1.75,#1002,paid
+-20.00,USD,refund,-20.00,2026-08-03,0.00,#1001,paid
+-5.00,USD,adjustment,-5.00,2026-08-03,0.00,,paid
